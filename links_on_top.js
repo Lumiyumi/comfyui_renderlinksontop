@@ -22,22 +22,49 @@ app.registerExtension({
       const ctx = this.ctx;
       if (!graph || !ctx) return result;
 
-      // Collect every link ID touching a selected node
+      // Collect every link ID touching a selected node, following through reroutes
       const linkIds = new Set();
+      const isReroute = (n) =>
+        n &&
+        (n.type === "Reroute" ||
+          n.type === "RerouteNode" ||
+          n.constructor?.type === "Reroute" ||
+          (n.is_widget === false &&
+            n.inputs?.length === 1 &&
+            n.outputs?.length === 1 &&
+            n.size?.[0] <= 30));
+
+      function followOutputs(node, graph) {
+        if (!node.outputs) return;
+        for (const out of node.outputs) {
+          if (!out.links) continue;
+          for (const lid of out.links) {
+            if (linkIds.has(lid)) continue;
+            linkIds.add(lid);
+            const lk = graph.links[lid] ?? graph.links?.get?.(lid);
+            if (!lk) continue;
+            const target = graph.getNodeById(lk.target_id);
+            if (isReroute(target)) followOutputs(target, graph);
+          }
+        }
+      }
+
+      function followInputs(node, graph) {
+        if (!node.inputs) return;
+        for (const inp of node.inputs) {
+          if (inp.link == null || linkIds.has(inp.link)) continue;
+          linkIds.add(inp.link);
+          const lk = graph.links[inp.link] ?? graph.links?.get?.(inp.link);
+          if (!lk) continue;
+          const source = graph.getNodeById(lk.origin_id);
+          if (isReroute(source)) followInputs(source, graph);
+        }
+      }
+
       for (const nodeId in selectedNodes) {
         const node = selectedNodes[nodeId];
-        if (node.inputs) {
-          for (const inp of node.inputs) {
-            if (inp.link != null) linkIds.add(inp.link);
-          }
-        }
-        if (node.outputs) {
-          for (const out of node.outputs) {
-            if (out.links) {
-              for (const lid of out.links) linkIds.add(lid);
-            }
-          }
-        }
+        followOutputs(node, graph);
+        followInputs(node, graph);
       }
       if (!linkIds.size) return result;
 
