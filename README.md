@@ -11,7 +11,7 @@ Links to and from highlighted nodes render above other nodes
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/Lumiyumi/comfyui_stringcombineX.git
+git clone https://github.com/Lumiyumi/comfyui_renderlinksontop
 ```
 
 Restart ComfyUI after installation.
